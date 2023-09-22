@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
+#include "Interfaces/OnlineSessionInterface.h"
 #include "SteamSeshCharacter.generated.h"
 
 
@@ -67,6 +68,18 @@ public:
 public:
 	//Pointer to the online session interface
 	//This is a TSharedPtr designed to hold an IOnlineSession object with the thread-safe option:
-	TSharedPtr<class IOnlineSession, ESPMode::ThreadSafe> OnlineSessionInterface;
+	//TSharedPtr<class IOnlineSession, ESPMode::ThreadSafe> OnlineSessionInterface;
+	IOnlineSessionPtr OnlineSessionInterface;
+
+protected:
+	UFUNCTION(BlueprintCallable)
+	void CreateGameSession();
+
+	//Callback function bound to CreateSessionCompleteDelegate
+	void OnCreateSessionComplete(FName SessionName, bool wasSuccessful);
+
+private:
+	//Delegate for session callbacks
+	FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate;
 };
 
