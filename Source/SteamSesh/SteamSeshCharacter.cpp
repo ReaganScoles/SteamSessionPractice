@@ -9,6 +9,8 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "OnlineSubsystem.h"
+#include "Interfaces/OnlineSessionInterface.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -49,6 +51,22 @@ ASteamSeshCharacter::ASteamSeshCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+
+	//Access the Steam online subsystem:
+	IOnlineSubsystem* OnlineSubsystem = IOnlineSubsystem::Get();
+	if (OnlineSubsystem)
+	{
+		//Get access to the online session interface
+		OnlineSessionInterface = OnlineSubsystem->GetSessionInterface();
+
+		if (GEngine)
+		{
+			//Use Printf to format a string "Found subsystem %s" using another string, which is the name of the subsystem
+			//Parameters: -1 specifies not to replace the previous message if printing more than one message, 15.0f is the length of time it should be visible, then the
+			//color, and then the actual string we're printing
+			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Blue, FString::Printf(TEXT("Found subsystem %s"), *OnlineSubsystem->GetSubsystemName().ToString()));
+		}
+	}
 }
 
 void ASteamSeshCharacter::BeginPlay()
