@@ -75,11 +75,24 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void CreateGameSession();
 
+	//Joins eligible game sessions within the same Steam region
+	UFUNCTION(BlueprintCallable)
+	void JoinGameSession();
+
 	//Callback function bound to CreateSessionCompleteDelegate
 	void OnCreateSessionComplete(FName SessionName, bool wasSuccessful);
+
+	//Find a game session within the same Steam region
+	void OnFindSessionsComplete(bool wasSuccessful);
 
 private:
 	//Delegate for session callbacks
 	FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate;
+	
+	//Delegate for join session callbacks
+	FOnFindSessionsCompleteDelegate FindSessionsCompleteDelegate;
+
+	//Search settings for finding sessions
+	TSharedPtr<FOnlineSessionSearch> SessionSearch;
 };
 

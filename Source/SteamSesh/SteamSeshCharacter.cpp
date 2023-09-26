@@ -11,14 +11,16 @@
 #include "EnhancedInputSubsystems.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSessionSettings.h"
+#include "Online/OnlineSessionNames.h"
 
 
 //////////////////////////////////////////////////////////////////////////
 // ASteamSeshCharacter
 
-//Initializing CreateSessionCompleteDelegate and binding it to OnCreateSessionComplete() function
+//Initializing delegates and binding them to their respective functions
 ASteamSeshCharacter::ASteamSeshCharacter():
-	CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete))
+	CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete)),
+	FindSessionsCompleteDelegate(FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionsComplete))
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -112,12 +114,35 @@ void ASteamSeshCharacter::CreateGameSession()
 	SessionSettings->bAllowJoinViaPresence = true;	//Use Steam's built-in regions, a.k.a. Presence? Only allows connection to sessions in the client's region if true
 	SessionSettings->bShouldAdvertise = true;		//Determines whether Steam can advertise this session so other players can find and join it
 	SessionSettings->bUsesPresence = true;			//Determines whether Steam can use Presence to find local sessions to connect to
+	SessionSettings->bUseLobbiesIfAvailable = true;	//Determines whether to use Lobbies API if the platform supports them; This is in case the game has trouble finding sessions
 	//Add "bInitServerOnClient=true" to DefaultEngine.ini for this to work in the build
 	//Also, add "LastSessionSettings->bUseLobbiesIfAvailable = true;" where the LastSessionSettings are being set in Plugins/MultiplayerSessions/Source/Private/MultiplayerSessionsSubsystem.cpp
 
 	//Create new game session using game settings
 	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 	OnlineSessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSettings);
+}
+
+//Joins eligible game sessions within the same Steam region
+void ASteamSeshCharacter::JoinGameSession()
+{
+	//Find game sessions
+	if (!OnlineSessionInterface.IsValid())
+	{
+		return;
+	}
+
+	//Add delegate to session interface's delegate list
+	OnlineSessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
+
+	//Search settings
+	SessionSearch = MakeShareable(new FOnlineSessionSearch());
+	SessionSearch->MaxSearchResults = 10000;	//Allow for possibility of lots of sessions by other devs
+	SessionSearch->bIsLanQuery = false;			//Not using LAN
+	SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);	//Set it to search using Presence
+	
+	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+	OnlineSessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
 }
 
 //Callback function bound to CreateSessionCompleteDelegate
@@ -143,6 +168,20 @@ void ASteamSeshCharacter::OnCreateSessionComplete(FName SessionName, bool wasSuc
 				15.0f,
 				FColor::Red,
 				FString(TEXT("Failed to create session!")));
+		}
+	}
+}
+
+//Find a game session within the same Steam region
+void ASteamSeshCharacter::OnFindSessionsComplete(bool wasSuccessful)
+{
+	for (auto Result : SessionSearch->SearchResults)
+	{
+		FString Id = Result.GetSessionIdStr();
+		FString User = Result.Session.OwningUserName;
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Cyan, FString::Printf(TEXT("Id: %s, User: %s"), *Id, *User));
 		}
 	}
 }
